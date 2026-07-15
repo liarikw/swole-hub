@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Rickle Tickle Swole Hub</title>
+
+<!-- ===== APP ICON + PWA (this page owns them, so iOS uses YOUR icon) ===== -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.jpg">
+<link rel="icon" type="image/jpeg" href="icon.jpg">
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Swole Hub">
+
+<style>
+  html,body{margin:0;height:100%;background:#0b1220;overflow:hidden}
+  #app{border:0;width:100vw;height:100vh;height:100dvh;display:block}
+  #load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#93a1c0;
+    font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:#0b1220;z-index:2}
+  .sp{width:22px;height:22px;border:3px solid #ffffff33;border-top-color:#3b82f6;border-radius:50%;animation:s .8s linear infinite;margin-right:10px}
+  @keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+  <div id="load"><div class="sp"></div>Loading Swole Hub…</div>
+  <!-- 👇 REPLACE the src below with your Apps Script Web-app URL (ends in /exec) -->
+  <iframe id="app"
+          src="PASTE_YOUR_WEB_APP_URL_HERE"
+          allow="fullscreen; clipboard-write"
+          onload="document.getElementById('load').style.display='none'"></iframe>
+</body>
+</html>
