@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>Rickle Tickle Swole Hub</title>
+<title>Rickle Tickle's Swole Hub</title>
 
 <!-- ===== APP ICON + PWA (this page owns them, so iOS uses YOUR icon) ===== -->
 <link rel="manifest" href="manifest.webmanifest">
@@ -16,8 +16,11 @@
 <meta name="apple-mobile-web-app-title" content="Swole Hub">
 
 <style>
-  html,body{margin:0;height:100%;background:#0b1220;overflow:hidden}
-  #app{border:0;width:100vw;height:100vh;height:100dvh;display:block}
+  /* Lock everything to the real visible screen. In home-screen (standalone) mode
+     there's no browser toolbar, so this fills the device edge-to-edge with no gap. */
+  html{height:100%}
+  body{margin:0;background:#0b1220;position:fixed;top:0;left:0;right:0;bottom:0;overflow:hidden}
+  #app{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
   #load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#93a1c0;
     font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:#0b1220;z-index:2}
   .sp{width:22px;height:22px;border:3px solid #ffffff33;border-top-color:#3b82f6;border-radius:50%;animation:s .8s linear infinite;margin-right:10px}
@@ -26,7 +29,6 @@
 </head>
 <body>
   <div id="load"><div class="sp"></div>Loading Swole Hub…</div>
-  <!-- 👇 REPLACE the src below with your Apps Script Web-app URL (ends in /exec) -->
   <iframe id="app"
           src="https://script.google.com/macros/s/AKfycbzwdvEgFhW6_jixW6ryDZyPVwg-8Ec6PQkmYYNhw5GM6emC16RqNwYg5eQcXe5tDymRoA/exec"
           allow="fullscreen; clipboard-write"
