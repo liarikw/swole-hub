@@ -38,9 +38,9 @@
   .weeknav button{width:30px;height:26.5px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:16px;font-weight:800;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center}
   .weeknav button:disabled{opacity:.32} .weeknav button:active{background:var(--accent);border-color:var(--accent)}
   .wlabel{font-size:11px;font-weight:700;color:#c7d2fe;min-width:112.5px;text-align:center}
-  .days{display:flex;gap:6px;overflow-x:auto;padding:9px 14px 10.5px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .days{display:flex;gap:5px;overflow-x:auto;padding:9px 12px 10.5px;max-width:640px;margin:0 auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   .days::-webkit-scrollbar{display:none}
-  .day{flex:0 0 auto;min-width:46px;text-align:center;padding:6px 8px;border-radius:12.5px;background:var(--card);border:1px solid var(--line);color:var(--mut);cursor:pointer;transition:.12s}
+  .day{flex:1 1 0;min-width:40px;text-align:center;padding:6px 0;border-radius:12.5px;background:var(--card);border:1px solid var(--line);color:var(--mut);cursor:pointer;transition:.12s}
   .ringwrap{width:35px;height:35px;border-radius:50%;padding:2.5px;margin:0 auto}
   .ringinner{width:100%;height:100%;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center}
   .day.sel .ringinner{background:var(--accent)}
