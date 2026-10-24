@@ -69,6 +69,9 @@ assert.equal(tue.pct, 100);                    // 3 skipped + stairmaster logged
 const squat = boot.state.today.items.find(i => i.exercise === 'Back Squat');
 assert.deepEqual(squat.last, { sets: 4, reps: 14, weight: 70, date: '7/8', progress: '' });
 const bench = (await api.getDay('Arik', 'Monday', '2026-07-13')).items[0];
+// baseline = previous session, never the same day's own entry
+assert.equal(bench.last.weight, 195, 'last = session before the viewed date');
+assert.equal(bench.prevMax, 195);
 assert.equal(bench.existing.weight, 200);
 assert.equal(bench.pyramid, true);
 
@@ -158,6 +161,31 @@ $('w' + idx).value = '110'; w.logCard(idx);
 for (let i = 0; i < 20 && !/Logged|Updated/.test($('btn' + idx).textContent); i++) await tick();
 assert.match($('btn' + idx).textContent, /Logged|Updated/);
 assert.match($('toast').textContent, /PR|Leg Press/);
+// colors vs PREVIOUS session (Back Squat: last session 4x14 @70; today already logged @80 earlier in this test)
+const cardsNow = [...w.document.querySelectorAll('#cards .card')];
+const sq = cardsNow.findIndex(c => c._it.exercise === 'Back Squat');
+const sqCard = () => w.document.querySelectorAll('#cards .card')[sq];
+assert.equal(sqCard()._it.last.weight, 70, 'baseline is last week, not today');
+assert.ok(sqCard().classList.contains('record'), 'heavier than ever before -> gold');
+const logAndWait = async (sets, reps, weight) => {
+  $('s' + sq).value = sets; $('r' + sq).value = reps; $('w' + sq).value = weight; w.live(sq);
+  $('btn' + sq).textContent = 'Update'; w.logCard(sq);
+  for (let i = 0; i < 30 && !/Logged|Updated/.test($('btn' + sq).textContent); i++) await tick();
+};
+await logAndWait(4, 14, 70);   // misclicked up earlier, corrected back to last week's numbers
+assert.ok(sqCard().classList.contains('flat') && !sqCard().classList.contains('invalid'), 'same as last week -> orange, not red');
+assert.equal(sqCard()._it.last.weight, 70, 'baseline not overwritten by today');
+await logAndWait(4, 15, 70);   // one more rep than last week
+assert.ok(sqCard().classList.contains('done') && !sqCard().classList.contains('flat'), 'reps up -> green');
+await logAndWait(3, 12, 65);   // lighter and fewer reps
+assert.ok(sqCard().classList.contains('flat'), 'went down -> orange');
+// auto tag follows the numbers
+$('w' + sq).value = 72.5; w.live(sq);
+assert.equal(sqCard()._prog, 'PR', 'above all-time best -> PR');
+$('w' + sq).value = 70; $('r' + sq).value = 16; w.live(sq);
+assert.equal(sqCard()._prog, '+rep');
+$('r' + sq).value = 14; w.live(sq);
+assert.equal(sqCard()._prog, '', 'nothing up -> no tag');
 // expired token -> back to picker
 w.localStorage.setItem('thq_tok', 'bogus.bogus'); w.selectDay('Monday');
 for (let i = 0; i < 20 && !$('picker').classList.contains('show'); i++) await tick();

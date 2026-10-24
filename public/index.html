@@ -108,6 +108,7 @@
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12.5px;margin-bottom:10.5px;transition:border-color .15s,background .15s}
   .card.done{border-color:var(--accent2);background:linear-gradient(180deg,#123024,#141d33)}
   .card.record{border-color:var(--gold);background:linear-gradient(180deg,#2a2410,#141d33)}
+  .card.flat{border-color:#f59e0b;background:linear-gradient(180deg,#2c1f0c,#141d33)}
   .card.invalid{border-color:var(--pr)} .card.skipped{opacity:.55}
   .card.skipped .steppers,.card.skipped .chips,.card.skipped .note{filter:grayscale(.85);pointer-events:none;opacity:.65}
   .crow{display:flex;align-items:center;justify-content:space-between;gap:9px}
@@ -195,7 +196,7 @@
   .spinner{display:inline-block;width:14px;height:14px;border:2px solid #ffffff44;border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-3px}
   @keyframes spin{to{transform:rotate(360deg)}}
   #toast{position:fixed;left:50%;bottom:calc(var(--navh) + var(--navgap) + 14px);transform:translateX(-50%) translateY(16px);background:#0f1830;border:1px solid var(--accent);color:#fff;padding:9.5px 14px;border-radius:10.5px;font-size:12.5px;font-weight:700;opacity:0;transition:.25s;z-index:50;pointer-events:none;max-width:88%;text-align:center}
-  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)} #toast.gold{border-color:var(--gold)} #toast.err{border-color:var(--pr)}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)} #toast.gold{border-color:var(--gold)} #toast.err{border-color:var(--pr)} #toast.warn{border-color:#f59e0b}
   .picker{position:fixed;inset:0;z-index:100;background:rgba(6,10,20,.92);backdrop-filter:blur(5.5px);display:none;align-items:center;justify-content:center;padding:21px}
   .picker.show{display:flex}
   .picker-box{width:100%;max-width:317px;text-align:center}
@@ -544,7 +545,7 @@ function stepCell(id,lab,v,unit,step){ return '<div class="st"><div class="lab">
 function nOr(v,d){ return (v===''||v==null)?d:v; }
 function card(it,i){
   const isCardio=it.category==='Cardio', isPyr=!!it.pyramid; const s=it.start; LOAD_SEL[i]=it.loadType;
-  const d=document.createElement('div'); d.className='card'+(it.existing?' done':'')+(it.skipped?' skipped':'')+(cardOpen(it.exercise)?' open':''); d.id='card'+i; d._it=it; d._prog=(it.existing&&it.existing.progress)||'';
+  const d=document.createElement('div'); d.className='card'+(it.existing?' '+statusClass(cardStatus(it,existingVals(it))):'')+(it.skipped?' skipped':'')+(cardOpen(it.exercise)?' open':''); d.id='card'+i; d._it=it; d._prog=(it.existing&&it.existing.progress)||'';
   const open=cardOpen(it.exercise);
   const skipTag=it.skipped?'<span class="tag skip">SKIPPED</span>':'';
   const editing=it.existing?'<div class="editing">✓ Already logged this date — change values &amp; save to update</div>':'';
@@ -616,21 +617,37 @@ function renderPyr(i){ const d=document.getElementById('card'+i); if(!d)return; 
 function pyrBump(i,k,f,step){ const arr=document.getElementById('card'+i)._pyr; if(!arr[k])return; arr[k][f]=Math.max(0,(+arr[k][f]||0)+step); renderPyr(i); }
 function pyrAdd(i){ const arr=document.getElementById('card'+i)._pyr; const p=arr[arr.length-1]||{w:0,r:0}; arr.push({w:+p.w||0,r:+p.r||0}); renderPyr(i); }
 function pyrRemove(i,k){ const arr=document.getElementById('card'+i)._pyr; if(arr.length<=1)return; arr.splice(k,1); renderPyr(i); }
-function stp(i,f,step){ bump(f+i,step); if(step>0){ if(f==='r')autoTag(i,'+rep'); if(f==='w')autoTag(i,'+weight'); if(f==='s')autoTag(i,'+set'); } live(i); }
+function stp(i,f,step){ bump(f+i,step); live(i); }
 function autoTag(i,v){ const w=document.getElementById('chips'+i); if(!w)return; [...w.children].forEach(c=>c.classList.toggle('sel',c.dataset.v===v)); document.getElementById('card'+i)._prog=v; }
 function prog(i,elm){ const w=document.getElementById('chips'+i), c=document.getElementById('card'+i);
-  if(c._prog===elm.dataset.v){ elm.classList.remove('sel'); c._prog=''; } else { [...w.children].forEach(x=>x.classList.remove('sel')); elm.classList.add('sel'); c._prog=elm.dataset.v; } live(i); }
-function validate(it,sets,reps,weight,tag){ const m=[],L=it.last;
+  c._manual=true; if(c._prog===elm.dataset.v){ elm.classList.remove('sel'); c._prog=''; } else { [...w.children].forEach(x=>x.classList.remove('sel')); elm.classList.add('sel'); c._prog=elm.dataset.v; } live(i); }
+/* Red = likely typo only. Progress is judged vs your PREVIOUS session (never today's own entry). */
+function validate(it,sets,reps,weight){ const m=[],L=it.last;
   if(!(sets>0)) m.push('Sets is 0'); if(!(reps>0)) m.push('Reps is 0');
-  if(L){ const lw=(L.weight===''||L.weight==null)?null:+L.weight, lr=+L.reps||0, ls=+L.sets||0;
-    if(tag==='+rep' && !(reps>lr)) m.push('Tagged ▲ rep but reps ('+reps+') not above last ('+lr+')');
-    if(tag==='+set' && !(sets>ls)) m.push('Tagged ▲ set but sets ('+sets+') not above last ('+ls+')');
-    if(tag==='+weight' && lw!=null && !(weight>lw)) m.push('Tagged ▲ weight but weight ('+weight+') not above last ('+lw+')');
-    if(tag==='PR' && lw!=null && !(weight>lw)) m.push('Tagged PR but weight ('+weight+') not above last ('+lw+')');
-    if(weight!=='' && lw!=null && lw>0){ if(weight>lw*3) m.push('Weight over 3× last ('+lw+'). Typo?'); if(weight>0&&weight<lw/3) m.push('Weight much lower than last ('+lw+').'); } }
+  if(L){ const lw=(L.weight===''||L.weight==null)?null:+L.weight;
+    if(weight!=='' && lw!=null && lw>0){ if(weight>lw*3) m.push('Weight over 3× last ('+lw+'). Typo?'); if(weight>0&&weight<lw/3) m.push('Weight much lower than last ('+lw+'). Typo?'); } }
   return m; }
+function pyrTopOf(sets){ let t=null; (sets||[]).forEach(x=>{ const w=+x.w||0, r=+x.r||0; if(!t||w>t.w||(w===t.w&&r>t.r)) t={w,r}; }); return t; }
+function existingVals(it){ const e=it.existing; if(!e) return null; return it.pyramid?{pyr:it.pyramidStart||[]}:{sets:+e.sets||0,reps:+e.reps||0,weight:(e.weight===''||e.weight==null)?'':+e.weight}; }
+/* 'pr' (gold): heaviest weight ever  ·  'up' (green): weight or reps went up vs last session (or first time)
+   'flat' (orange): neither weight nor reps went up  ·  cardio always counts as 'up' */
+function cardStatus(it,v){ if(!v || it.category==='Cardio') return 'up';
+  const L=it.last, max=it.prevMax;
+  if(it.pyramid){ const cur=pyrTopOf(v.pyr); if(!cur) return 'up';
+    const prev=(it.pyramidLast&&it.pyramidLast.length)?pyrTopOf(it.pyramidLast):(L?{w:+L.weight||0,r:+L.reps||0}:null);
+    if(max!=null && cur.w>max) return 'pr'; if(!prev) return 'up';
+    return (cur.w>prev.w || cur.r>prev.r)?'up':'flat'; }
+  const w=v.weight===''?0:+v.weight;
+  if(max!=null && w>max) return 'pr'; if(!L) return 'up';
+  return (w>(+L.weight||0) || (+v.reps||0)>(+L.reps||0))?'up':'flat'; }
+function statusClass(st){ return st==='pr'?'record':(st==='flat'?'flat':'done'); }
+function deriveTag(it,sets,reps,weight){ const L=it.last; const w=weight===''?0:+weight;
+  if(it.prevMax!=null && w>it.prevMax) return 'PR'; if(!L) return '';
+  if(w>(+L.weight||0)) return '+weight'; if(reps>(+L.reps||0)) return '+rep'; if(sets>(+L.sets||0)) return '+set'; return ''; }
 function live(i){ const d=document.getElementById('card'+i); if(!d) return; const it=d._it; if(it.category==='Cardio') return;
-  const msgs=validate(it,+val('s'+i),+val('r'+i),val('w'+i)===''?'':+val('w'+i),d._prog); const w=document.getElementById('warn'+i); if(!w) return;
+  const S=+val('s'+i), R=+val('r'+i), W=val('w'+i)===''?'':+val('w'+i);
+  if(!d._manual){ const t=deriveTag(it,S,R,W); d._prog=t; const cw=document.getElementById('chips'+i); if(cw)[...cw.children].forEach(c=>c.classList.toggle('sel',c.dataset.v===t)); }
+  const msgs=validate(it,S,R,W); const w=document.getElementById('warn'+i); if(!w) return;
   if(msgs.length){ w.textContent='⚠ '+msgs.join(' · '); w.classList.add('on'); d.classList.add('invalid'); } else { w.textContent=''; w.classList.remove('on'); d.classList.remove('invalid'); } }
 function toggleSkip(i){ const d=document.getElementById('card'+i), it=d._it, willSkip=!d.classList.contains('skipped'); const sb=document.getElementById('skip'+i); sb.classList.add('saving');
   google.script.run.withSuccessHandler(function(){ sb.classList.remove('saving'); d.classList.toggle('skipped',willSkip); sb.textContent=willSkip?'Unskip':'Skip'; document.getElementById('btn'+i).disabled=willSkip;
@@ -643,8 +660,12 @@ function logCard(i){ const d=document.getElementById('card'+i), it=d._it, isCard
   if(isPyr){ entry={user:CUR_USER,exercise:it.exercise,category:it.category,notes:note,day:CUR_DAY,logDate:CUR_DATE,loadType:LOAD_SEL[i]||it.loadType,progress:'',pyramid:d._pyr.map(s=>({w:+s.w||0,r:+s.r||0}))}; }
   else if(isCardio){ const cf=cardioFields(it.exercise); entry={user:CUR_USER,exercise:it.exercise,category:'Cardio',notes:note,day:CUR_DAY,logDate:CUR_DATE,sets:0,reps:0,weight:'',loadType:'',progress:'',time:cf.time?+val('t'+i):'',level:cf.level?+val('lv'+i):'',pace:cf.pace?val('pc'+i):'',calories:cf.cal?+val('cal'+i):''}; }
   else { entry={user:CUR_USER,exercise:it.exercise,sets:+val('s'+i),reps:+val('r'+i),weight:val('w'+i)===''?'':+val('w'+i),loadType:LOAD_SEL[i]||it.loadType,progress:d._prog,category:it.category,notes:note,day:CUR_DAY,logDate:CUR_DATE}; }
-  google.script.run.withSuccessHandler(function(res){ btn.classList.remove('saving'); btn.textContent=res.updated?'✓ Updated':'✓ Logged'; d.classList.remove('invalid'); d.classList.add(res.isPR?'record':'done');
-    if(!isCardio&&!isPyr) it.last={sets:entry.sets,reps:entry.reps,weight:entry.weight,date:'now',progress:d._prog}; toast(res.message,res.isPR?'gold':''); refreshDash();
+  google.script.run.withSuccessHandler(function(res){ btn.classList.remove('saving'); btn.textContent=res.updated?'✓ Updated':'✓ Logged'; d.classList.remove('invalid','done','flat','record');
+    const st=cardStatus(it, isPyr?{pyr:entry.pyramid}:(isCardio?null:{sets:entry.sets,reps:entry.reps,weight:entry.weight}));
+    d.classList.add(statusClass(st));
+    it.existing=isPyr?{sets:entry.pyramid.length,reps:0,weight:'',progress:'',notes:note}:{sets:entry.sets,reps:entry.reps,weight:entry.weight,progress:d._prog,notes:note};
+    if(isPyr) it.pyramidStart=entry.pyramid;
+    toast(st==='flat'?(it.exercise+' saved · same as last time'):res.message, st==='pr'?'gold':(st==='flat'?'warn':'')); refreshDash();
   }).withFailureHandler(function(e){ btn.classList.remove('saving'); btn.textContent='Retry'; toast('Error: '+(e.message||e),'err'); }).logSet(entry); }
 function refreshDash(){ google.script.run.withSuccessHandler(function(dash){ STATE.dashboard=dash; renderKpis(dash); renderExtras(); }).getDashboardPublic(CUR_USER); refreshWeek(); }
 function refreshWeek(){ if(!WEEK) return; google.script.run.withSuccessHandler(function(w){ WEEK=w; renderWeek(); }).getWeek(CUR_USER,CUR_OFFSET,WEEK_MODE); }
