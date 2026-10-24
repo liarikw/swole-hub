@@ -122,7 +122,7 @@ async function fakeFetch(url, opts) {
 }
 const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8').replace(/<script defer src="https:[^"]+"><\/script>/, '');
 const errors = [];
-const dom = new JSDOM(html, { runScripts: 'dangerously', url: 'https://swole.test/', beforeParse(w) {
+const dom = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://swole.test/', beforeParse(w) {
   w.fetch = fakeFetch; w.Chart = function () { this.destroy = () => {}; };
   w.HTMLElement.prototype.scrollIntoView = () => {}; w.scrollTo = () => {};
   w.addEventListener('error', e => errors.push(e.message));
