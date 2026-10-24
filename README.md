@@ -1,4 +1,4 @@
-# Rickle Tickle's Swole Hub 🏋️
+# Welcome to Swole Hub 🏋️
 
 * This is a workout and hobby learning logger that is mobile-first but also works on a desktop or laptop
 * I created this to replace the annoyance of logging and tracking my workouts in my Notes app, but it has evolved into tracking my habits like learning languages and practicing instruments.
