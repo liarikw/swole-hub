@@ -1,0 +1,13 @@
+{
+  "name": "swole-hub",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "22.x" },
+  "dependencies": {
+    "postgres": "3.4.7"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.7",
+    "jsdom": "26.1.0"
+  }
+}
