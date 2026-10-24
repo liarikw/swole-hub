@@ -66,6 +66,15 @@
   .exsec.first{margin-top:2px}
   .exh{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;letter-spacing:.2px;color:#eef2ff;cursor:pointer}
   .exh .caret{color:var(--mut);font-size:9.5px;font-weight:700}
+  /* collapsible sections: the whole row is the toggle */
+  .exsec.tap{cursor:pointer;margin:9px 0 0;padding:12px 13px;background:var(--card);border:1px solid var(--line);border-radius:14px;transition:background .15s,border-color .15s}
+  .exsec.tap:active{transform:scale(.99);background:var(--card2)}
+  .exsec.tap.open{margin-bottom:8px;border-color:#2f3d5c}
+  .exsec.tap.first{margin-top:2px}
+  .exsec .right{display:flex;align-items:center;gap:9px}
+  .chev{display:inline-block;color:var(--mut);font-size:17px;font-weight:700;line-height:1;transition:transform .25s cubic-bezier(.34,1.4,.64,1)}
+  .open>.right>.chev,.card.open .chev{transform:rotate(90deg)}
+  .exsec .sub{font-size:11px;color:var(--mut);font-weight:600}
   .catpill{font-size:8px;font-weight:800;padding:2.5px 8px;border-radius:879px;border:1px solid;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
   .miniskip{font-size:9px;font-weight:700;padding:4.5px 9.5px;border-radius:879px;border:1px solid var(--line);background:var(--card);color:var(--mut);cursor:pointer}
   .miniskip.on{background:var(--pr);border-color:var(--pr);color:#fff}
@@ -134,7 +143,8 @@
   .sesshint b{color:#c7d2fe}
   /* collapsible workout cards */
   .cardhead{cursor:pointer}
-  .ccaret{color:var(--mut);font-size:10.5px;font-weight:700;margin-left:2px}
+  .cardhead{margin:-12.5px;padding:12.5px}
+  .card.open .cardhead{padding-bottom:0;margin-bottom:0}
   /* pyramid sets */
   .pyrwrap{margin-top:10.5px;display:flex;flex-direction:column;gap:6px}
   .pyrrow{display:flex;align-items:center;gap:5.5px}
@@ -349,7 +359,7 @@ initOpen();
   if(saved && lsGet('thq_tok')){ document.getElementById('userName').textContent=saved; startAs(saved); }   // returning user → 1 round-trip, no getUsers
   else { google.script.run.withSuccessHandler(function(u){ USERS_LIST=u&&u.length?u:['Arik']; showPicker(); }).withFailureHandler(bootErr).getUsers(); }
 })();
-function initOpen(){ SECTIONS.forEach(sec=>{ if(sec.collapsible){ const v=lsGet('thq_open_'+sec.title); OPEN[sec.title]= (v===null)?(sec.defaultOpen!==false):(v==='1'); } }); }
+function initOpen(){ SECTIONS.forEach(sec=>{ if(sec.collapsible){ const v=lsGet('thq_sec_'+sec.title); OPEN[sec.title]= (v==='1'); } }); }
 function showPicker(){ if(!USERS_LIST.length){ google.script.run.withSuccessHandler(function(u){ USERS_LIST=u&&u.length?u:['Arik']; showPicker(); }).getUsers(); return; }
   const box=document.getElementById('pickerBtns'); box.innerHTML='';
   document.getElementById('pickerSub').textContent="Who's logging?"; document.getElementById('pinPad').style.display='none'; box.style.display='flex';
@@ -431,8 +441,10 @@ function initExtras(extras){ extras=extras||{}; EXTRAS_DONE=[];
 function renderExtras(){ const box=document.getElementById('extras'); box.innerHTML='';
   SECTIONS.forEach((sec,si)=>{
     const open = sec.collapsible ? OPEN[sec.title] : true;
-    const head=document.createElement('div'); head.className='exsec'+(si===0?' first':'');
-    if(sec.collapsible){ head.innerHTML='<div class="exh" onclick="toggleSection(\''+sec.title+'\')"><span>'+sec.emoji+' '+sec.title+'</span><span class="caret">'+(open?'▾ hide':'▸ show')+'</span></div>'+(sec.batchSkip?'<button class="miniskip'+(ABS_SKIP?' on':'')+'" onclick="toggleAbsSkip(event)">'+(ABS_SKIP?'Unskip all':'Skip all')+'</button>':''); }
+    const head=document.createElement('div'); head.className='exsec'+(si===0?' first':'')+(sec.collapsible?' tap'+(open?' open':''):'');
+    if(sec.collapsible){ const doneN=sec.items.filter(it=>EXTRAS_DONE.indexOf(it.name)>=0).length;
+      head.onclick=function(){ toggleSection(sec.title); };
+      head.innerHTML='<div class="exh"><span>'+sec.emoji+' '+sec.title+'</span>'+(doneN?'<span class="sub">'+doneN+' done</span>':'')+'</div><div class="right">'+(sec.batchSkip?'<button class="miniskip'+(ABS_SKIP?' on':'')+'" onclick="toggleAbsSkip(event)">'+(ABS_SKIP?'Unskip all':'Skip all')+'</button>':'')+'<span class="chev">›</span></div>'; }
     else head.innerHTML='<div class="exh"><span>'+sec.emoji+' '+sec.title+'</span></div>';
     box.appendChild(head);
     const g=document.createElement('div'); g.className='habits'; g.style.gridTemplateColumns='repeat('+(sec.cols||2)+',1fr)';
@@ -463,7 +475,7 @@ function toggleExtra(it,done,div){ div.style.opacity=.5; const on=!done; const p
   google.script.run.withSuccessHandler(function(){ if(on){ if(EXTRAS_DONE.indexOf(it.name)<0) EXTRAS_DONE.push(it.name); } else { EXTRAS_DONE=EXTRAS_DONE.filter(x=>x!==it.name); }
     toast(it.name+(on?' logged':' unlogged')); refreshDash(); refreshWeek(); renderExtras();
   }).withFailureHandler(function(){ div.style.opacity=1; toast('Error','err'); }).logExtra(CUR_USER,it.name,CUR_DAY,CUR_DATE,p.time,p.reps,p.notes,on); }
-function toggleSection(title){ OPEN[title]=!OPEN[title]; lsSet('thq_open_'+title,OPEN[title]?'1':'0'); renderExtras(); }
+function toggleSection(title){ OPEN[title]=!OPEN[title]; lsSet('thq_sec_'+title,OPEN[title]?'1':'0'); renderExtras(); }
 function toggleAbsSkip(e){ if(e) e.stopPropagation(); const on=!ABS_SKIP;
   google.script.run.withSuccessHandler(function(){ ABS_SKIP=on; toast(on?'Abs skipped today':'Abs unskipped'); renderExtras(); }).setSkip(CUR_USER,'__ABS__',CUR_DAY,CUR_DATE,on); }
 /* swimming */
@@ -532,7 +544,7 @@ function stepCell(id,lab,v,unit,step){ return '<div class="st"><div class="lab">
 function nOr(v,d){ return (v===''||v==null)?d:v; }
 function card(it,i){
   const isCardio=it.category==='Cardio', isPyr=!!it.pyramid; const s=it.start; LOAD_SEL[i]=it.loadType;
-  const d=document.createElement('div'); d.className='card'+(it.existing?' done':'')+(it.skipped?' skipped':''); d.id='card'+i; d._it=it; d._prog=(it.existing&&it.existing.progress)||'';
+  const d=document.createElement('div'); d.className='card'+(it.existing?' done':'')+(it.skipped?' skipped':'')+(cardOpen(it.exercise)?' open':''); d.id='card'+i; d._it=it; d._prog=(it.existing&&it.existing.progress)||'';
   const open=cardOpen(it.exercise);
   const skipTag=it.skipped?'<span class="tag skip">SKIPPED</span>':'';
   const editing=it.existing?'<div class="editing">✓ Already logged this date — change values &amp; save to update</div>':'';
@@ -566,7 +578,7 @@ function card(it,i){
     <div class="warn" id="warn${i}"></div>`;
   }
   const noteVal=it.existing&&it.existing.notes?esc(String(it.existing.notes)):'';
-  d.innerHTML=`<div class="crow cardhead" onclick="toggleCard(${i})"><div class="ex">${exEmoji(it.exercise,it.category)} ${it.exercise} <span class="ccaret">${open?'▾':'▸'}</span></div><div class="badges">${skipTag}${catPill(it.category)}</div></div>
+  d.innerHTML=`<div class="crow cardhead" onclick="toggleCard(${i})"><div class="ex">${exEmoji(it.exercise,it.category)} ${it.exercise}</div><div class="badges">${skipTag}${catPill(it.category)}<span class="chev">›</span></div></div>
     <div class="cardbody" id="cbody${i}"${open?'':' style="display:none"'}>
     ${last}${editing}${body}
     <input class="note" id="n${i}" placeholder="Note (optional)" value="${noteVal}">
@@ -579,10 +591,10 @@ function card(it,i){
   return d;
 }
 /* ---- collapsible workout cards (state remembered per exercise) ---- */
-function cardOpen(ex){ const v=lsGet('thq_card_'+ex); return v===null?true:(v==='1'); }
+function cardOpen(ex){ return lsGet('thq_c_'+ex)==='1'; }
 function toggleCard(i){ const d=document.getElementById('card'+i); if(!d)return; const ex=d._it.exercise; const open=!cardOpen(ex);
-  lsSet('thq_card_'+ex,open?'1':'0'); const b=document.getElementById('cbody'+i); if(b) b.style.display=open?'':'none';
-  const c=d.querySelector('.ccaret'); if(c) c.textContent=open?'▾':'▸'; }
+  lsSet('thq_c_'+ex,open?'1':'0'); const b=document.getElementById('cbody'+i); if(b) b.style.display=open?'':'none';
+  d.classList.toggle('open',open); }
 /* ---- pyramid sets ---- */
 function pyrInit(it){ if(it.pyramidStart&&it.pyramidStart.length) return it.pyramidStart.map(s=>({w:+s.w||0,r:+s.r||0}));
   const tw=+it.target.weight||0, tr=+it.target.reps||0, ns=Math.max(3,+it.target.sets||3); const a=[]; for(let k=0;k<ns;k++) a.push({w:tw,r:tr}); return a; }

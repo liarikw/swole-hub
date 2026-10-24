@@ -139,6 +139,19 @@ assert.equal(w.document.querySelectorAll('#cards .card').length, 9);
 assert.equal(w.document.querySelectorAll('#days .day').length, 7);
 assert.match($('kpis').textContent, /205/);
 assert.ok(w.localStorage.getItem('thq_tok'));
+// everything collapsible starts collapsed; tapping the row (not a button) opens it and is remembered
+const secs = [...w.document.querySelectorAll('#extras .exsec.tap')];
+assert.equal(secs.length, 4);
+assert.ok(secs.every(h => !h.classList.contains('open') && h.nextElementSibling.style.display === 'none'), 'sections collapsed by default');
+assert.ok(!w.document.querySelector('#extras').textContent.match(/hide|show/), 'no hide/show labels');
+secs[0].click();
+const warm = w.document.querySelector('#extras .exsec.tap');
+assert.ok(warm.classList.contains('open') && warm.nextElementSibling.style.display !== 'none', 'tap opens section');
+assert.equal(w.localStorage.getItem('thq_sec_Warmups'), '1');
+const cards = [...w.document.querySelectorAll('#cards .card')];
+assert.ok(cards.every(c => $('cbody' + cards.indexOf(c)).style.display === 'none'), 'cards collapsed by default');
+cards[0].querySelector('.cardhead').click();
+assert.ok(cards[0].classList.contains('open') && $('cbody0').style.display === '', 'tap opens card');
 // log a card through the UI
 const idx = [...w.document.querySelectorAll('#cards .card')].findIndex(c => c._it.exercise === 'Leg Press');
 $('w' + idx).value = '110'; w.logCard(idx);
