@@ -22,7 +22,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const result = await createApi(getDb())[fn](...args);
+    const noDb = fn === 'getUsers' || fn === 'getArtsList';   // static config, works even if the DB is down
+    const result = await createApi(noDb ? null : getDb())[fn](...args);
     return res.status(200).json({ result: result === undefined ? null : result });
   } catch (e) {
     console.error(fn, e);

@@ -3,7 +3,7 @@
 * This is a workout and hobby learning logger that is mobile-first but also works on a desktop or laptop
 * I created this to replace the annoyance of logging and tracking my workouts in my Notes app, but it has evolved into tracking my habits like learning languages and practicing instruments.
 * Now I can track lifts, cardio, recovery, other workouts
-* It runs as a Google Apps script with a Google Sheets database so no server to maintain or any app store installation
+* It runs on Vercel (static page + serverless functions) with a Supabase Postgres database. No app store install: open https://swole-hub.vercel.app and Add to Home Screen
 
 ---
 
@@ -21,14 +21,10 @@ Every day has its own plan: a preset list of exercises. You open the app, it alr
 
 ## How Swole Hub is Built ~~~
 
-- **Front End:** a single-page web app served by Google Apps Script (`Code.gs` + `App.html` + `Styles.html`)
-- **Database:** a bound Google Sheet with separate tabs for the workout log, the day-by-day program, and skips; every row is tagged with a user to prevent data mixing
-- **Home-screen icon:** a tiny GitHub Pages "launcher" wraps the app so iPhone shows a custom app icon and opens it (Google's own hosting can't set a custom icon)
-
-The 3 code files each own one job:
-1. `Code.gs` is the backend and data logic
-2. `App.html` is the interface and all the in-app behavior
-3. `Styles.html` is the look and layout.
+- **Front End:** one static page, `public/index.html` (UI + styles + logic), served by Vercel
+- **API:** `api/[fn].js`, one serverless function that exposes the backend functions in `lib/core.js` as `POST /api/<name>`
+- **Database:** Supabase Postgres (`log`, `program`, `skips`, `users`), every row tagged with a user. RLS is on and the public API is locked out; only the server talks to the database
+- **Login:** profile + PIN, checked server-side (PINs stored hashed), then a signed session token on every call
 
 ---
 
@@ -88,15 +84,23 @@ Items with a weekly goal (like swimming 3× a week) show a little progress bar t
 
 ## Where the data lives
 
-Everything is stored in a linked Google Sheet so the app never keeps a separate copy. You can open that Sheet any time to see or export the raw numbers. Because saves are keyed to user + exercise + date, editing a past day just updates that day's row rather than creating duplicates, so the Sheet stays readable even after months of logging.
+Supabase project **Swole Hub** (us-east-1). Browse or export it from the Supabase Table Editor. Saves are keyed to user + exercise + date (a unique constraint), so editing a past day updates that row instead of adding duplicates.
+
+The original Google Sheet ("Training HQ Database") is the pre-October 2026 history and is no longer written to.
 
 ---
 
 ## The pieces, at a glance
 
-| File | What it does |
+| Path | What it does |
 |------|--------------|
-| `Code.gs` | Backend logic — reads/writes the Sheet, handles profiles and PINs, builds each day and the weekly view, computes progress. |
-| `App.html` | The interface and all in-app behavior (logging, steppers, tabs, charts). |
-| `Styles.html` | All the styling and mobile layout. |
-| *(launcher repo)* | `index.html` + `manifest.webmanifest` + `icon.jpg` — the GitHub Pages page that gives you the ninja home-screen icon. |
+| `public/index.html` | The whole interface: logging, steppers, tabs, charts, styles |
+| `api/[fn].js` | RPC endpoint; checks the session and calls into `lib/core.js` |
+| `lib/core.js` | Backend logic: builds each day and week, logs sets, PRs, progress |
+| `lib/config.js` | Profiles, welcome messages, default program, key lifts |
+| `lib/importer.js`, `api/import.js` | One-time import from the Google Sheet (needs `ADMIN_KEY`) |
+| `apps-script/` | The original Apps Script files and the migration script |
+| `scripts/test-local.mjs`, `scripts/test-wire.mjs` | Tests: `npm i && node scripts/test-local.mjs && node scripts/test-wire.mjs` |
+| `index.html` (repo root) | Redirect for the old GitHub Pages home-screen link |
+
+Environment variables on Vercel: `POSTGRES_URL` (Supabase transaction pooler) and `ADMIN_KEY` (signs sessions, guards the import).
