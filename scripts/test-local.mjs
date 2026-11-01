@@ -127,7 +127,16 @@ assert.deepEqual(bpWeek.days.filter(d => d.pct === 100).map(d => d.iso), ['2026-
 await createApi(db).deleteBp('Leon 肛卜咛', bpDay.entries[0].id);   // other user can't delete mine
 assert.equal((await createApi(db).getBpDay('Arik', '2026-07-15')).entries.length, 2);
 await createApi(db).deleteBp('Arik', bpDay.entries[1].id);
+let afterDel = await createApi(db).getBpDay('Arik', '2026-07-15');
+assert.equal(afterDel.entries.length, 1);
+assert.deepEqual(afterDel.deleted.map(e => [e.sys, e.dia]), [[134, 86]], 'deleted reading is recoverable');
+assert.deepEqual((await createApi(db).getBpDay('Leon 肛卜咛', '2026-07-15')).deleted, [], 'deleted list is per user');
+await createApi(db).restoreBp('Leon 肛卜咛', bpDay.entries[1].id);   // other user can't restore mine
 assert.equal((await createApi(db).getBpDay('Arik', '2026-07-15')).entries.length, 1);
+await createApi(db).restoreBp('Arik', bpDay.entries[1].id);
+afterDel = await createApi(db).getBpDay('Arik', '2026-07-15');
+assert.equal(afterDel.entries.length, 2); assert.equal(afterDel.deleted.length, 0, 'restored');
+await createApi(db).deleteBp('Arik', bpDay.entries[1].id);   // deleted again for the rest of the test
 const bpProg = await createApi(db).getBpProgress('Arik');
 assert.equal(bpProg.total, 2); assert.deepEqual(bpProg.days.map(d => [d.date, d.sys, d.dia]), [['7/14', 122, 79], ['7/15', 118, 76]]);
 assert.deepEqual(bpProg.avg7, { sys: 120, dia: 78, n: 2 });
@@ -226,6 +235,16 @@ assert.match(del.textContent, /Delete\?/);
 del.click();
 for (let i = 0; i < 30 && w.document.querySelectorAll('#bpList .bprow').length === n0; i++) await tick();
 assert.equal(w.document.querySelectorAll('#bpList .bprow').length, n0 - 1, 'second tap deletes');
+for (let i = 0; i < 30 && !/Recently Deleted/.test($('bpDeleted').textContent); i++) await tick();
+assert.match($('bpDeleted').textContent, /Recently Deleted/);
+assert.equal(w.document.querySelectorAll('#bpDeleted .bprow').length, 0, 'collapsed by default');
+$('bpDeleted').querySelector('.exsec').click();
+for (let i = 0; i < 30 && !w.document.querySelector('#bpDeleted .restore'); i++) await tick();
+const nDel = w.document.querySelectorAll('#bpDeleted .bprow').length;
+w.document.querySelector('#bpDeleted .restore').click();
+for (let i = 0; i < 30 && w.document.querySelectorAll('#bpList .bprow').length !== n0; i++) await tick();
+assert.equal(w.document.querySelectorAll('#bpList .bprow').length, n0, 'restore puts it back');
+assert.equal(w.document.querySelectorAll('#bpDeleted .bprow').length, nDel - 1);
 w.show('progress'); w.setProgMode('bp');
 for (let i = 0; i < 30 && !/avg|total/.test($('prStat').textContent); i++) await tick();
 assert.match($('prStat').textContent, /total/);
