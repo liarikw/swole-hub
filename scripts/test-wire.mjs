@@ -38,5 +38,8 @@ assert.equal(r.updated, false);
 assert.equal((await createApi(db).logSet({ user: 'Arik', exercise: 'Back Squat', sets: 4, reps: 15, weight: 75, day: 'Wednesday', logDate: '2026-07-15' })).updated, true);
 await api.setSkip('Arik', 'Leg Curls', 'Wednesday', '2026-07-15', true);
 assert.equal((await createApi(db).getBoot('Desitrain')).state.today.items.length, 9);   // default program insert path
+await createApi(db).addBp('Arik', '2026-07-15', '07:30', 121, 79);   // auto-creates table over the real client
+await createApi(db).addBp('Arik', '2026-07-15', '19:00', 125, 81);
+assert.equal((await createApi(db).getBpDay('Arik', '2026-07-15')).entries.length, 2);
 console.log('Wire test passed (postgres.js client)');
 await server.stop(); process.exit(0);
