@@ -109,6 +109,7 @@
   .card.done{border-color:var(--accent2);background:linear-gradient(180deg,#123024,#141d33)}
   .card.record{border-color:var(--gold);background:linear-gradient(180deg,#2a2410,#141d33)}
   .card.flat{border-color:#f59e0b;background:linear-gradient(180deg,#2c1f0c,#141d33)}
+  .card.setsup{border-color:#fde047;background:linear-gradient(180deg,#2a2a0e,#141d33)}
   .card.invalid{border-color:var(--pr)} .card.skipped{opacity:.55}
   .card.skipped .steppers,.card.skipped .chips,.card.skipped .note{filter:grayscale(.85);pointer-events:none;opacity:.65}
   .crow{display:flex;align-items:center;justify-content:space-between;gap:9px}
@@ -667,17 +668,20 @@ function validate(it,sets,reps,weight){ const m=[],L=it.last;
 function pyrTopOf(sets){ let t=null; (sets||[]).forEach(x=>{ const w=+x.w||0, r=+x.r||0; if(!t||w>t.w||(w===t.w&&r>t.r)) t={w,r}; }); return t; }
 function existingVals(it){ const e=it.existing; if(!e) return null; return it.pyramid?{pyr:it.pyramidStart||[]}:{sets:+e.sets||0,reps:+e.reps||0,weight:(e.weight===''||e.weight==null)?'':+e.weight}; }
 /* 'pr' (gold): heaviest weight ever  ·  'up' (green): weight or reps went up vs last session (or first time)
-   'flat' (orange): neither weight nor reps went up  ·  cardio always counts as 'up' */
+   'sets' (yellow): only sets went up  ·  'flat' (orange): nothing went up  ·  cardio always counts as 'up' */
 function cardStatus(it,v){ if(!v || it.category==='Cardio') return 'up';
   const L=it.last, max=it.prevMax;
   if(it.pyramid){ const cur=pyrTopOf(v.pyr); if(!cur) return 'up';
     const prev=(it.pyramidLast&&it.pyramidLast.length)?pyrTopOf(it.pyramidLast):(L?{w:+L.weight||0,r:+L.reps||0}:null);
     if(max!=null && cur.w>max) return 'pr'; if(!prev) return 'up';
-    return (cur.w>prev.w || cur.r>prev.r)?'up':'flat'; }
+    if(cur.w>prev.w || cur.r>prev.r) return 'up';
+    const prevN=(it.pyramidLast&&it.pyramidLast.length)||(L?(+L.sets||0):0);
+    return (v.pyr||[]).length>prevN?'sets':'flat'; }
   const w=v.weight===''?0:+v.weight;
   if(max!=null && w>max) return 'pr'; if(!L) return 'up';
-  return (w>(+L.weight||0) || (+v.reps||0)>(+L.reps||0))?'up':'flat'; }
-function statusClass(st){ return st==='pr'?'record':(st==='flat'?'flat':'done'); }
+  if(w>(+L.weight||0) || (+v.reps||0)>(+L.reps||0)) return 'up';
+  return (+v.sets||0)>(+L.sets||0)?'sets':'flat'; }
+function statusClass(st){ return st==='pr'?'record':(st==='flat'?'flat':(st==='sets'?'setsup':'done')); }
 function deriveTag(it,sets,reps,weight){ const L=it.last; const w=weight===''?0:+weight;
   if(it.prevMax!=null && w>it.prevMax) return 'PR'; if(!L) return '';
   if(w>(+L.weight||0)) return '+weight'; if(reps>(+L.reps||0)) return '+rep'; if(sets>(+L.sets||0)) return '+set'; return ''; }
@@ -697,12 +701,12 @@ function logCard(i){ const d=document.getElementById('card'+i), it=d._it, isCard
   if(isPyr){ entry={user:CUR_USER,exercise:it.exercise,category:it.category,notes:note,day:CUR_DAY,logDate:CUR_DATE,loadType:LOAD_SEL[i]||it.loadType,progress:'',pyramid:d._pyr.map(s=>({w:+s.w||0,r:+s.r||0}))}; }
   else if(isCardio){ const cf=cardioFields(it.exercise); entry={user:CUR_USER,exercise:it.exercise,category:'Cardio',notes:note,day:CUR_DAY,logDate:CUR_DATE,sets:0,reps:0,weight:'',loadType:'',progress:'',time:cf.time?+val('t'+i):'',level:cf.level?+val('lv'+i):'',pace:cf.pace?val('pc'+i):'',calories:cf.cal?+val('cal'+i):''}; }
   else { entry={user:CUR_USER,exercise:it.exercise,sets:+val('s'+i),reps:+val('r'+i),weight:val('w'+i)===''?'':+val('w'+i),loadType:LOAD_SEL[i]||it.loadType,progress:d._prog,category:it.category,notes:note,day:CUR_DAY,logDate:CUR_DATE}; }
-  google.script.run.withSuccessHandler(function(res){ btn.classList.remove('saving'); btn.textContent=res.updated?'✓ Updated':'✓ Logged'; d.classList.remove('invalid','done','flat','record');
+  google.script.run.withSuccessHandler(function(res){ btn.classList.remove('saving'); btn.textContent=res.updated?'✓ Updated':'✓ Logged'; d.classList.remove('invalid','done','flat','record','setsup');
     const st=cardStatus(it, isPyr?{pyr:entry.pyramid}:(isCardio?null:{sets:entry.sets,reps:entry.reps,weight:entry.weight}));
     d.classList.add(statusClass(st));
     it.existing=isPyr?{sets:entry.pyramid.length,reps:0,weight:'',progress:'',notes:note}:{sets:entry.sets,reps:entry.reps,weight:entry.weight,progress:d._prog,notes:note};
     if(isPyr) it.pyramidStart=entry.pyramid;
-    toast(st==='flat'?(it.exercise+' saved · same as last time'):res.message, st==='pr'?'gold':(st==='flat'?'warn':'')); refreshDash();
+    toast(st==='flat'?(it.exercise+' saved · same as last time'):(st==='sets'?(it.exercise+' saved · more sets'):res.message), st==='pr'?'gold':(st==='flat'?'warn':'')); refreshDash();
   }).withFailureHandler(function(e){ btn.classList.remove('saving'); btn.textContent='Retry'; toast('Error: '+(e.message||e),'err'); }).logSet(entry); }
 function refreshDash(){ google.script.run.withSuccessHandler(function(dash){ STATE.dashboard=dash; renderKpis(dash); renderExtras(); }).getDashboardPublic(CUR_USER); refreshWeek(); }
 function refreshWeek(){ if(!WEEK) return; google.script.run.withSuccessHandler(function(w){ WEEK=w; renderWeek(); }).getWeek(CUR_USER,CUR_OFFSET,WEEK_MODE); }

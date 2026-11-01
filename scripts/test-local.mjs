@@ -106,7 +106,12 @@ assert.equal(artsWeek.days.find(d => d.iso === '2026-07-15').done, 1);
 
 // renamed user got the program; brand-new user gets default program on boot
 assert.equal((await createApi(db).getBoot('Leon 肛卜咛')).state.today.items.length, 9);
-assert.equal((await createApi(db).getBoot('Desitrain')).state.today.items.length, 9);
+assert.equal((await createApi(db).getBoot('Desitrain')).state.today.items.length, 9, 'additions are Arik-only');
+const wedA = (await createApi(db).getBoot('Arik')).state.today.items.map(i => i.exercise);
+assert.equal(wedA[wedA.length - 1], 'Right Angle Lateral Raises', 'added to end of Wednesday');
+assert.equal(wedA.length, 10);
+await createApi(db).getBoot('Arik');
+assert.equal((await createApi(db).getBoot('Arik')).state.today.items.length, 10, 'added only once');
 const dp = await createApi(db).getDayProgress('Arik', 'Wednesday');
 assert.ok(dp.exercises.includes('Back Squat'));
 // blood pressure: many readings per day, per-user, validation, rings, progress
@@ -169,7 +174,7 @@ assert.ok($('picker').classList.contains('show'), 'picker shows for new device')
 $('pinInput').value = '5555'; $('pinInput').dispatchEvent(new w.Event('input', { bubbles: true }));
 for (let i = 0; i < 20 && !$('cards').querySelector('.card'); i++) await tick();
 assert.ok(!$('picker').classList.contains('show'), 'picker closed after PIN');
-assert.equal(w.document.querySelectorAll('#cards .card').length, 9);
+assert.equal(w.document.querySelectorAll('#cards .card').length, 10, 'Wednesday incl. Right Angle Lateral Raises');
 assert.equal(w.document.querySelectorAll('#days .day').length, 7);
 assert.match($('kpis').textContent, /205/);
 assert.ok(w.localStorage.getItem('thq_tok'));
@@ -208,6 +213,8 @@ assert.ok(sqCard().classList.contains('flat') && !sqCard().classList.contains('i
 assert.equal(sqCard()._it.last.weight, 70, 'baseline not overwritten by today');
 await logAndWait(4, 15, 70);   // one more rep than last week
 assert.ok(sqCard().classList.contains('done') && !sqCard().classList.contains('flat'), 'reps up -> green');
+await logAndWait(5, 14, 70);   // only sets went up
+assert.ok(sqCard().classList.contains('setsup') && !sqCard().classList.contains('flat'), 'sets only -> yellow');
 await logAndWait(3, 12, 65);   // lighter and fewer reps
 assert.ok(sqCard().classList.contains('flat'), 'went down -> orange');
 // auto tag follows the numbers
