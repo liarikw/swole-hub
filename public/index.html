@@ -189,6 +189,22 @@
     transition:transform .45s cubic-bezier(.34,1.4,.64,1),width .45s cubic-bezier(.34,1.4,.64,1),height .2s,top .2s,bottom .2s}
   .navlens.drag{transition:none;top:1px;bottom:1px;background:linear-gradient(180deg,rgba(255,255,255,.3),rgba(255,255,255,.12))}
   @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){ nav{background:rgba(20,29,51,.96)} }
+  /* blood pressure */
+  .bpform{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:11px}
+  .bpform .st .val{font-size:26px}
+  .bptime{display:flex;align-items:center;gap:9px;margin-top:10px}
+  .bptime .slab{margin:0}
+  .bpcat{font-size:9px;font-weight:800;padding:3px 8px;border-radius:999px;border:1px solid;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+  .bpcat.c-Normal{color:#22c55e;border-color:#22c55e;background:#22c55e22}
+  .bpcat.c-Elevated{color:#eab308;border-color:#eab308;background:#eab30822}
+  .bpcat.c-Stage1{color:#f59e0b;border-color:#f59e0b;background:#f59e0b22}
+  .bpcat.c-Stage2{color:#f43f5e;border-color:#f43f5e;background:#f43f5e22}
+  .bpcat.c-Crisis{color:#fff;border-color:#e11d48;background:#e11d48}
+  .bprow{display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--card);border:1px solid var(--line);border-radius:13px;margin-top:7px}
+  .bprow .bpt{font-size:12px;color:var(--mut);font-weight:700;min-width:58px}
+  .bprow .bpv{font-size:19px;font-weight:800;flex:1} .bprow .bpv small{font-size:10px;color:var(--mut);font-weight:600}
+  .bprow .del{border:none;background:transparent;color:var(--warn);font-size:19px;font-weight:700;padding:0 4px;cursor:pointer}
+  .bpnote{font-size:10.5px;color:var(--mut);margin-top:12px;text-align:center}
   .view{display:none}.view.active{display:block}
   .muted{color:var(--mut);font-size:11.5px}
   canvas{background:var(--card);border:1px solid var(--line);border-radius:12.5px;padding:9px;margin-top:9px}
@@ -249,11 +265,28 @@
     <div id="artsCards"><div class="center"><span class="spinner"></span> Loading…</div></div>
   </section>
 
+  <section id="view-bp" class="view">
+    <div class="daytitle" id="bpTitle">🩺 Blood Pressure</div>
+    <div class="card">
+      <div class="crow"><div class="ex">New reading</div><div id="bpLiveCat">—</div></div>
+      <div class="bpform">
+        <div class="st"><div class="lab">Systolic</div><input class="val" id="bpSys" type="number" inputmode="numeric" value="120" oninput="bpLive()"><div class="unit">mmHg (top)</div><div class="ctrl"><button onclick="bpBump('bpSys',-1)">–</button><button onclick="bpBump('bpSys',1)">+</button></div></div>
+        <div class="st"><div class="lab">Diastolic</div><input class="val" id="bpDia" type="number" inputmode="numeric" value="80" oninput="bpLive()"><div class="unit">mmHg (bottom)</div><div class="ctrl"><button onclick="bpBump('bpDia',-1)">–</button><button onclick="bpBump('bpDia',1)">+</button></div></div>
+      </div>
+      <div class="bptime"><div class="slab">Time</div><input class="note timein" id="bpTime" type="time" style="flex:1"></div>
+      <div class="actions"><button class="btn primary" id="bpAddBtn" onclick="addBp()">Add reading</button></div>
+    </div>
+    <div class="sect" style="margin-top:16px" id="bpListTitle">Readings</div>
+    <div id="bpList"><div class="center"><span class="spinner"></span> Loading…</div></div>
+    <div class="bpnote">Categories follow AHA adult ranges. A tracker, not medical advice.</div>
+  </section>
+
   <section id="view-progress" class="view">
     <div class="chips" style="margin-bottom:6px">
       <span class="chip sel" id="pmw" onclick="setProgMode('workout')">🏋️ Workout</span>
       <span class="chip" id="pme" onclick="setProgMode('extras')">🧩 Other Ex</span>
       <span class="chip" id="pma" onclick="setProgMode('arts')">🎨 Fine Arts</span>
+      <span class="chip" id="pmb" onclick="setProgMode('bp')">🩺 BP</span>
     </div>
     <div class="sect" id="progTitle">Progress</div>
     <div id="progHelp" class="muted" style="margin:0 2px 4px;font-size:11.5px"></div>
@@ -270,6 +303,7 @@
   <span class="navlens" id="navlens"></span>
   <a id="nav-workout" class="active" onclick="show('workout')"><span class="ic">▦</span>Workout</a>
   <a id="nav-arts" onclick="show('arts')"><span class="ic">🎨</span>Fine Arts</a>
+  <a id="nav-bp" onclick="show('bp')"><span class="ic">🩺</span>BP</a>
   <a id="nav-progress" onclick="show('progress')"><span class="ic">◔</span>Progress</a>
 </nav>
 
@@ -419,7 +453,7 @@ function renderWeek(){ document.getElementById('wLabel').textContent=WEEK.weekLa
   const sel=el.querySelector('.day.sel'); if(sel) sel.scrollIntoView({inline:'center',block:'nearest'}); }
 function selectDay(name){ const d=WEEK.days.find(x=>x.name===name)||WEEK.days[0]; CUR_DAY=d.name; CUR_DATE=d.iso;
   document.querySelectorAll('#days .day').forEach((x,idx)=>x.classList.toggle('sel',WEEK.days[idx].name===CUR_DAY)); loadDayForTab(); }
-function loadDayForTab(){ if(TAB==='arts'){ document.getElementById('artsCards').innerHTML='<div class="center"><span class="spinner"></span> Loading…</div>'; google.script.run.withSuccessHandler(renderArts).getArtsDay(CUR_USER,CUR_DATE); }
+function loadDayForTab(){ if(TAB==='bp'){ loadBp(); return; } if(TAB==='arts'){ document.getElementById('artsCards').innerHTML='<div class="center"><span class="spinner"></span> Loading…</div>'; google.script.run.withSuccessHandler(renderArts).getArtsDay(CUR_USER,CUR_DATE); }
   else { document.getElementById('cards').innerHTML='<div class="center"><span class="spinner"></span> Loading…</div>'; google.script.run.withSuccessHandler(renderDay).withFailureHandler(bootErr).getDay(CUR_USER,CUR_DAY,CUR_DATE); } }
 
 /* ---------- KPIs ---------- */
@@ -693,19 +727,68 @@ function undoArt(i){ const c=document.getElementById('art'+i), name=c._name;
   google.script.run.withSuccessHandler(function(){ toast(name+' unlogged'); loadArts(); refreshWeek(); }).setArts(CUR_USER,name,CUR_DAY,CUR_DATE,0,0,'',false); }
 function loadArts(){ document.getElementById('artsCards').innerHTML='<div class="center"><span class="spinner"></span> Loading…</div>'; google.script.run.withSuccessHandler(renderArts).getArtsDay(CUR_USER,CUR_DATE); }
 
+/* ---------- blood pressure ---------- */
+function bpCat(s,d){ if(s>180||d>120) return 'Crisis'; if(s>=140||d>=90) return 'Stage 2'; if(s>=130||d>=80) return 'Stage 1'; if(s>=120) return 'Elevated'; return 'Normal'; }
+function bpPill(c){ return '<span class="bpcat c-'+c.replace(' ','')+'">'+c+'</span>'; }
+function nowHM(){ const d=new Date(); return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+function bpBump(id,step){ bump(id,step); bpLive(); }
+function bpLive(){ const s=+val('bpSys'), d=+val('bpDia'); document.getElementById('bpLiveCat').innerHTML=(s&&d)?bpPill(bpCat(s,d)):'—'; }
+function loadBp(){ document.getElementById('bpList').innerHTML='<div class="center"><span class="spinner"></span> Loading…</div>';
+  google.script.run.withSuccessHandler(renderBp).withFailureHandler(function(e){ document.getElementById('bpList').innerHTML='<div class="center">Couldn\'t load: '+(e&&e.message?e.message:e)+'</div>'; }).getBpDay(CUR_USER,CUR_DATE); }
+function renderBp(data){ CUR_DATE=data.dateISO; document.getElementById('subhead').textContent=data.dateLabel;
+  const isToday=data.dateISO===localISO();
+  document.getElementById('bpTitle').innerHTML='🩺 Blood Pressure<span class="meta">'+data.dateLabel+(isToday?' · today':'')+'</span>';
+  const t=document.getElementById('bpTime'); if(!t.dataset.touched) t.value=isToday?nowHM():'08:00';
+  if(!document.getElementById('bpSys').dataset.touched && data.last){ document.getElementById('bpSys').value=data.last.sys; document.getElementById('bpDia').value=data.last.dia; }
+  bpLive();
+  document.getElementById('bpListTitle').textContent=data.entries.length?(data.entries.length+' reading'+(data.entries.length>1?'s':'')):'Readings';
+  const box=document.getElementById('bpList');
+  if(!data.entries.length){ box.innerHTML='<div class="center" style="padding:22px 10px">No readings this day yet.</div>'; return; }
+  box.innerHTML=data.entries.map(e=>'<div class="bprow"><div class="bpt">'+(e.time?t12(e.time):'—')+'</div><div class="bpv">'+e.sys+' / '+e.dia+' <small>mmHg</small></div>'+bpPill(e.cat)+'<button class="del" aria-label="Delete reading" onclick="delBp('+e.id+',this)">×</button></div>').join(''); }
+function addBp(){ const s=+val('bpSys'), d=+val('bpDia'), tm=val('bpTime');
+  if(!(s>0&&d>0)){ toast('Enter both numbers','err'); return; }
+  if(d>=s){ toast('Bottom number should be lower than top','err'); return; }
+  const btn=document.getElementById('bpAddBtn'); btn.classList.add('saving'); btn.innerHTML='<span class="spinner"></span>';
+  google.script.run.withSuccessHandler(function(r){ btn.classList.remove('saving'); btn.textContent='Add reading';
+      toast(s+'/'+d+' · '+r.cat, (r.cat==='Stage 2'||r.cat==='Crisis')?'err':''); document.getElementById('bpTime').dataset.touched=''; loadBp(); refreshWeek(); })
+    .withFailureHandler(function(e){ btn.classList.remove('saving'); btn.textContent='Add reading'; toast((e&&e.message)||'Error','err'); })
+    .addBp(CUR_USER,CUR_DATE,tm,s,d); }
+function delBp(id,el){ if(el && !el.dataset.arm){ el.dataset.arm='1'; el.textContent='Delete?'; el.style.fontSize='12px';
+    setTimeout(()=>{ if(el.isConnected){ el.dataset.arm=''; el.textContent='×'; el.style.fontSize=''; } },3000); return; }
+  google.script.run.withSuccessHandler(function(){ toast('Reading removed'); loadBp(); refreshWeek(); })
+    .withFailureHandler(function(){ toast('Error','err'); }).deleteBp(CUR_USER,id); }
+document.addEventListener('input',function(e){ const id=e.target&&e.target.id; if(id==='bpTime'||id==='bpSys'||id==='bpDia') e.target.dataset.touched='1'; });
+function loadBpProgress(){ document.getElementById('progTitle').textContent='Blood pressure — progress';
+  document.getElementById('progHelp').textContent='Every reading over time (top), and your daily average (bottom). Dashed lines mark 130/80.';
+  document.getElementById('progEx').innerHTML=''; document.getElementById('prStat').innerHTML='<span class="spinner"></span> loading…';
+  google.script.run.withSuccessHandler(function(h){ if(PROG_MODE!=='bp') return;
+    if(!h.total){ document.getElementById('prStat').textContent='No readings yet. Add one in the BP tab.'; if(cW)cW.destroy(); if(cV)cV.destroy(); cW=cV=null; return; }
+    document.getElementById('prStat').innerHTML=(h.avg7?'<b style="color:#c7d2fe">7-day avg '+h.avg7.sys+'/'+h.avg7.dia+'</b> '+bpPill(bpCat(h.avg7.sys,h.avg7.dia))+' · '+h.avg7.n+' readings · ':'')+h.total+' total';
+    const lab=h.readings.map(r=>r.date+(r.time?' '+r.time:''));
+    cW=bpChart('chartWeight',cW,lab,h.readings.map(r=>r.sys),h.readings.map(r=>r.dia),'line');
+    cV=bpChart('chartVolume',cV,h.days.map(d=>d.date),h.days.map(d=>d.sys),h.days.map(d=>d.dia),'line');
+  }).getBpProgress(CUR_USER); }
+function bpChart(id,inst,labels,sys,dia,type){ if(inst)inst.destroy();
+  const ref=(v,c)=>({label:'',data:labels.map(()=>v),borderColor:c,borderDash:[5,4],borderWidth:1,pointRadius:0,fill:false});
+  return new Chart(document.getElementById(id),{type:type,data:{labels:labels,datasets:[
+      {label:'Systolic',data:sys,borderColor:'#f43f5e',backgroundColor:'#f43f5e33',tension:.3,pointRadius:3,borderWidth:2,fill:false},
+      {label:'Diastolic',data:dia,borderColor:'#3b82f6',backgroundColor:'#3b82f633',tension:.3,pointRadius:3,borderWidth:2,fill:false},
+      ref(130,'#f43f5e88'),ref(80,'#3b82f688')]},
+    options:{plugins:{legend:{labels:{color:'#93a1c0',filter:i=>!!i.text}}},scales:{x:{ticks:{color:'#93a1c0',maxRotation:0,autoSkip:true,maxTicksLimit:7},grid:{color:'#26324c'}},y:{ticks:{color:'#93a1c0'},grid:{color:'#26324c'},suggestedMin:60,suggestedMax:150}}}}); }
+
 /* ---------- progress ---------- */
-function setProgMode(m){ PROG_MODE=m; document.getElementById('pmw').classList.toggle('sel',m==='workout'); document.getElementById('pme').classList.toggle('sel',m==='extras'); document.getElementById('pma').classList.toggle('sel',m==='arts'); loadProgress(); }
+function setProgMode(m){ PROG_MODE=m; document.getElementById('pmw').classList.toggle('sel',m==='workout'); document.getElementById('pme').classList.toggle('sel',m==='extras'); document.getElementById('pma').classList.toggle('sel',m==='arts'); document.getElementById('pmb').classList.toggle('sel',m==='bp'); loadProgress(); }
 function loadProgress(){ document.getElementById('chartDayVol').style.display='none';
-  if(PROG_MODE==='workout') loadDayProgress(CUR_DAY); else if(PROG_MODE==='extras') loadExtrasProgress(); else loadArtsProgress(); }
+  if(PROG_MODE==='workout') loadDayProgress(CUR_DAY); else if(PROG_MODE==='extras') loadExtrasProgress(); else if(PROG_MODE==='bp') loadBpProgress(); else loadArtsProgress(); }
 function loadDayProgress(day){ const tt=DAY_I18N[day]; document.getElementById('progTitle').textContent=day+' · '+tt.jp+' · '+tt.kr+' — progress';
   document.getElementById('progHelp').textContent='Pick a lift to see your top weight over time. "Volume" = total lb moved (sets × reps × weight).';
   document.getElementById('progEx').innerHTML=''; document.getElementById('prStat').innerHTML='<span class="spinner"></span> loading…';
-  google.script.run.withSuccessHandler(function(dp){
+  google.script.run.withSuccessHandler(function(dp){ if(PROG_MODE!=='workout') return;
     const box=document.getElementById('progEx'); box.innerHTML=''; dp.exercises.forEach((ex,idx)=>{ const c=document.createElement('span'); c.className='chip'+(idx===0?' sel':''); c.textContent=ex; c.onclick=function(){ [...box.children].forEach(x=>x.classList.remove('sel')); c.classList.add('sel'); loadHistory(ex); }; box.appendChild(c); });
     if(dp.exercises.length) loadHistory(dp.exercises[0]); else document.getElementById('prStat').textContent='No logs for '+day+' yet.';
   }).getDayProgress(CUR_USER,day); }
 function loadHistory(ex){ document.getElementById('prStat').innerHTML='<span class="spinner"></span> loading…'; google.script.run.withSuccessHandler(drawHistory).getHistory(CUR_USER,ex); }
-function drawHistory(h){ const labels=h.points.map(p=>p.date);
+function drawHistory(h){ if(PROG_MODE!=='workout') return; const labels=h.points.map(p=>p.date);
   if(h.cardio){ document.getElementById('prStat').innerHTML='<b style="color:#c7d2fe">'+h.exercise+'</b> — max '+h.maxTime+' min · '+h.maxCal+' cal · '+h.points.length+' logs';
     cW=chart('chartWeight',cW,labels,h.points.map(p=>p.time),'Time (min)','#3b82f6','line'); cV=chart('chartVolume',cV,labels,h.points.map(p=>p.calories),'Calories','#10b981','bar');
   } else { document.getElementById('prStat').innerHTML='<b style="color:#c7d2fe">'+h.exercise+'</b> — top weight '+h.maxWeight+' lb · '+h.points.length+' logs';
@@ -716,7 +799,7 @@ function loadExtrasProgress(){ document.getElementById('progTitle').textContent=
   list.forEach((it,idx)=>{ const c=document.createElement('span'); c.className='chip'+(idx===0?' sel':''); c.textContent=extraEmoji(it.name)+' '+it.name; c.onclick=function(){ [...box.children].forEach(x=>x.classList.remove('sel')); c.classList.add('sel'); loadExtraHistory(it); }; box.appendChild(c); });
   if(list.length) loadExtraHistory(list[0]); }
 function loadExtraHistory(it){ document.getElementById('prStat').innerHTML='<span class="spinner"></span> loading…';
-  google.script.run.withSuccessHandler(function(h){ const labels=h.points.map(p=>p.date); const isReps=(it.kind==='reps'||it.kind==='swim');
+  google.script.run.withSuccessHandler(function(h){ if(PROG_MODE!=='extras') return; const labels=h.points.map(p=>p.date); const isReps=(it.kind==='reps'||it.kind==='swim');
     const primary=h.points.map(p=> isReps? p.reps : p.time); const plabel=it.kind==='reps'?'Reps':(it.kind==='swim'?'Laps':(it.kind==='secs'?'Seconds':'Minutes'));
     document.getElementById('prStat').innerHTML='<b style="color:#c7d2fe">'+extraEmoji(it.name)+' '+it.name+'</b> — '+h.points.length+' logs';
     cW=chart('chartWeight',cW,labels,primary,plabel,'#3b82f6','line'); cV=chart('chartVolume',cV,labels,h.points.map(p=>p.time),'Time (min/sec)','#10b981','line');
@@ -726,7 +809,7 @@ function loadArtsProgress(){ document.getElementById('progTitle').textContent='F
   ARTS_LIST.forEach((a,idx)=>{ const c=document.createElement('span'); c.className='chip'+(idx===0?' sel':''); c.textContent=ARTS_META[a]+' '+a; c.onclick=function(){ [...box.children].forEach(x=>x.classList.remove('sel')); c.classList.add('sel'); loadArtsHistory(a); }; box.appendChild(c); });
   loadArtsHistory(ARTS_LIST[0]); }
 function loadArtsHistory(a){ document.getElementById('prStat').innerHTML='<span class="spinner"></span> loading…';
-  google.script.run.withSuccessHandler(function(h){ document.getElementById('prStat').innerHTML='<b style="color:#c7d2fe">'+a+'</b> — '+fmtMin(h.totalMin)+' total · '+h.sessions+' sessions · avg '+h.avgRating+'★';
+  google.script.run.withSuccessHandler(function(h){ if(PROG_MODE!=='arts') return; document.getElementById('prStat').innerHTML='<b style="color:#c7d2fe">'+a+'</b> — '+fmtMin(h.totalMin)+' total · '+h.sessions+' sessions · avg '+h.avgRating+'★';
     const labels=h.points.map(p=>p.date); cW=chart('chartWeight',cW,labels,h.points.map(p=>p.minutes),'Minutes','#3b82f6','line'); cV=chart('chartVolume',cV,labels,h.points.map(p=>p.rating),'Rating (1-5)','#f5b301','line');
   }).getArtsProgress(CUR_USER,a); }
 function chart(id,inst,labels,data,label,color,type){ if(inst)inst.destroy();
@@ -735,12 +818,12 @@ function chart(id,inst,labels,data,label,color,type){ if(inst)inst.destroy();
 
 /* ---------- nav + utils ---------- */
 function show(v){ TAB=v;
-  ['workout','arts','progress'].forEach(x=>{ document.getElementById('view-'+x).classList.toggle('active',x===v); document.getElementById('nav-'+x).classList.toggle('active',x===v); });
+  ['workout','arts','bp','progress'].forEach(x=>{ document.getElementById('view-'+x).classList.toggle('active',x===v); document.getElementById('nav-'+x).classList.toggle('active',x===v); });
   document.getElementById('dateBar').style.display=(v==='progress')?'none':'block';
-  if(v==='workout') reloadWeek('workout'); else if(v==='arts') reloadWeek('arts'); else loadProgress();
+  if(v==='workout') reloadWeek('workout'); else if(v==='arts') reloadWeek('arts'); else if(v==='bp') reloadWeek('bp'); else loadProgress();
   const wrapEl=document.querySelector('.wrap'); if(wrapEl) wrapEl.scrollTo(0,0); window.scrollTo(0,0); moveNavLens(); }
 /* ---------- Liquid Glass tab bar: tap or drag the lens between tabs ---------- */
-function navTabs(){ return ['workout','arts','progress'].map(v=>document.getElementById('nav-'+v)).filter(a=>a && a.style.display!=='none'); }
+function navTabs(){ return ['workout','arts','bp','progress'].map(v=>document.getElementById('nav-'+v)).filter(a=>a && a.style.display!=='none'); }
 function placeLens(x,w){ const l=document.getElementById('navlens'); if(!l) return; l.style.width=w+'px'; l.style.transform='translateX('+x+'px)'; }
 function moveNavLens(){ const a=document.querySelector('#tabbar a.active'); if(a) placeLens(a.offsetLeft,a.offsetWidth); }
 (function(){ const bar=document.getElementById('tabbar'), lens=document.getElementById('navlens'); if(!bar) return;

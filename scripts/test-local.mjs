@@ -109,6 +109,28 @@ assert.equal((await createApi(db).getBoot('Leon 肛卜咛')).state.today.items.l
 assert.equal((await createApi(db).getBoot('Desitrain')).state.today.items.length, 9);
 const dp = await createApi(db).getDayProgress('Arik', 'Wednesday');
 assert.ok(dp.exercises.includes('Back Squat'));
+// blood pressure: many readings per day, per-user, validation, rings, progress
+let bpApi = createApi(db);
+assert.deepEqual((await bpApi.getBpDay('Arik', '2026-07-15')).entries, []);
+await bpApi.addBp('Arik', '2026-07-15', '07:30', 118, 76);
+await bpApi.addBp('Arik', '2026-07-15', '21:05', 134, 86);
+await bpApi.addBp('Arik', '2026-07-14', '8:00', 122, 79);
+await bpApi.addBp('Leon 肛卜咛', '2026-07-15', '09:00', 150, 95);
+await assert.rejects(bpApi.addBp('Arik', '2026-07-15', '10:00', 80, 120), /lower than systolic/);
+await assert.rejects(bpApi.addBp('Arik', '2026-07-15', '10:00', 20, 10), /looks off/);
+let bpDay = await createApi(db).getBpDay('Arik', '2026-07-15');
+assert.deepEqual(bpDay.entries.map(e => [e.time, e.sys, e.dia, e.cat]), [['07:30', 118, 76, 'Normal'], ['21:05', 134, 86, 'Stage 1']]);
+assert.equal((await createApi(db).getBpDay('Arik', '2026-07-14')).entries[0].time, '08:00', 'time zero-padded');
+assert.equal((await createApi(db).getBpDay('Leon 肛卜咛', '2026-07-15')).entries.length, 1, 'users isolated');
+const bpWeek = await createApi(db).getWeek('Arik', 0, 'bp');
+assert.deepEqual(bpWeek.days.filter(d => d.pct === 100).map(d => d.iso), ['2026-07-14', '2026-07-15']);
+await createApi(db).deleteBp('Leon 肛卜咛', bpDay.entries[0].id);   // other user can't delete mine
+assert.equal((await createApi(db).getBpDay('Arik', '2026-07-15')).entries.length, 2);
+await createApi(db).deleteBp('Arik', bpDay.entries[1].id);
+assert.equal((await createApi(db).getBpDay('Arik', '2026-07-15')).entries.length, 1);
+const bpProg = await createApi(db).getBpProgress('Arik');
+assert.equal(bpProg.total, 2); assert.deepEqual(bpProg.days.map(d => [d.date, d.sys, d.dia]), [['7/14', 122, 79], ['7/15', 118, 76]]);
+assert.deepEqual(bpProg.avg7, { sys: 120, dia: 78, n: 2 });
 console.log('API tests passed');
 
 /* ---- frontend smoke test: real index.html, fetch routed into the handler logic ---- */
@@ -127,7 +149,7 @@ const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf
 const errors = [];
 const dom = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://swole.test/', beforeParse(w) {
   w.fetch = fakeFetch; w.Chart = function () { this.destroy = () => {}; };
-  w.HTMLElement.prototype.scrollIntoView = () => {}; w.scrollTo = () => {};
+  w.HTMLElement.prototype.scrollIntoView = () => {}; w.Element.prototype.scrollTo = () => {}; w.scrollTo = () => {};
   w.addEventListener('error', e => errors.push(e.message));
 }});
 const w = dom.window, $ = id => w.document.getElementById(id);
@@ -186,6 +208,28 @@ $('w' + sq).value = 70; $('r' + sq).value = 16; w.live(sq);
 assert.equal(sqCard()._prog, '+rep');
 $('r' + sq).value = 14; w.live(sq);
 assert.equal(sqCard()._prog, '', 'nothing up -> no tag');
+// BP tab: sits right of Fine Arts, loads the day, adds a reading, shows it
+assert.deepEqual([...w.document.querySelectorAll('#tabbar a')].map(a => a.id), ['nav-workout', 'nav-arts', 'nav-bp', 'nav-progress']);
+w.show('bp');
+for (let i = 0; i < 30 && ($('bpList').querySelector('.spinner') || !/reading|No readings/i.test($('bpList').textContent + $('bpListTitle').textContent)); i++) await tick();
+assert.ok(!$('bpList').querySelector('.spinner'), 'BP day loaded');
+assert.ok($('view-bp').classList.contains('active') && $('dateBar').style.display !== 'none', 'BP tab with calendar');
+const before = w.document.querySelectorAll('#bpList .bprow').length;
+$('bpSys').value = '128'; $('bpDia').value = '82'; $('bpTime').value = '18:45'; w.addBp();
+for (let i = 0; i < 30 && w.document.querySelectorAll('#bpList .bprow').length === before; i++) await tick();
+assert.equal(w.document.querySelectorAll('#bpList .bprow').length, before + 1);
+assert.match($('bpList').textContent, /128 \/ 82/); assert.match($('bpList').textContent, /Stage 1/i);
+const n0 = w.document.querySelectorAll('#bpList .bprow').length, del = w.document.querySelector('#bpList .bprow .del');
+del.click(); await tick();
+assert.equal(w.document.querySelectorAll('#bpList .bprow').length, n0, 'first tap only arms delete');
+assert.match(del.textContent, /Delete\?/);
+del.click();
+for (let i = 0; i < 30 && w.document.querySelectorAll('#bpList .bprow').length === n0; i++) await tick();
+assert.equal(w.document.querySelectorAll('#bpList .bprow').length, n0 - 1, 'second tap deletes');
+w.show('progress'); w.setProgMode('bp');
+for (let i = 0; i < 30 && !/avg|total/.test($('prStat').textContent); i++) await tick();
+assert.match($('prStat').textContent, /total/);
+w.show('workout');
 // expired token -> back to picker
 w.localStorage.setItem('thq_tok', 'bogus.bogus'); w.selectDay('Monday');
 for (let i = 0; i < 20 && !$('picker').classList.contains('show'); i++) await tick();
